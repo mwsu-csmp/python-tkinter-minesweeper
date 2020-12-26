@@ -1,5 +1,7 @@
-# Python Version 2.7.3
-# File: minesweeper.py
+# Minesweeper
+#
+# Modified for use in CSC184 - Missouri Western State University
+# Original source code: https://github.com/ripexz/python-tkinter-minesweeper
 
 from tkinter import *
 from tkinter import messagebox as tkMessageBox
@@ -108,7 +110,7 @@ def setup():
 
                 tile["button"].bind(BTN_CLICK, onClickWrapper(x, y))
                 tile["button"].bind(BTN_FLAG, onRightClickWrapper(x, y))
-                tile["button"].grid( row = x+1, column = y ) # offset by 1 row for timer
+                tile["button"].grid(row = x+1, column = y) # offset by 1 row for timer
 
                 tiles[x][y] = tile
 
