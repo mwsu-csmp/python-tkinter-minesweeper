@@ -20,13 +20,18 @@ BTN_CLICK = "<Button-1>"
 BTN_FLAG = "<Button-2>" if platform.system() == 'Darwin' else "<Button-3>"
 
 window = None
+images = None
+frame = None
+labels = None
 
-class Minesweeper:
-
-    def __init__(self, tk):
+def init():
+        global images
+        global labels
+        global frame
+        global window
 
         # import images
-        self.images = {
+        images = {
             "plain": PhotoImage(file = "images/tile_plain.gif"),
             "clicked": PhotoImage(file = "images/tile_clicked.gif"),
             "mine": PhotoImage(file = "images/tile_mine.gif"),
@@ -35,51 +40,59 @@ class Minesweeper:
             "numbers": []
         }
         for i in range(1, 9):
-            self.images["numbers"].append(PhotoImage(file = "images/tile_"+str(i)+".gif"))
+            images["numbers"].append(PhotoImage(file = "images/tile_"+str(i)+".gif"))
 
         # set up frame
-        self.tk = tk
-        self.frame = Frame(self.tk)
-        self.frame.pack()
+        frame = Frame(window)
+        frame.pack()
 
         # set up labels/UI
-        self.labels = {
-            "time": Label(self.frame, text = "00:00:00"),
-            "mines": Label(self.frame, text = "Mines: 0"),
-            "flags": Label(self.frame, text = "Flags: 0")
+        labels = {
+            "time": Label(frame, text = "00:00:00"),
+            "mines": Label(frame, text = "Mines: 0"),
+            "flags": Label(frame, text = "Flags: 0")
         }
-        self.labels["time"].grid(row = 0, column = 0, columnspan = SIZE_Y) # top full width
-        self.labels["mines"].grid(row = SIZE_X+1, column = 0, columnspan = int(SIZE_Y/2)) # bottom left
-        self.labels["flags"].grid(row = SIZE_X+1, column = int(SIZE_Y/2)-1, columnspan = int(SIZE_Y/2)) # bottom right
+        labels["time"].grid(row = 0, column = 0, columnspan = SIZE_Y) # top full width
+        labels["mines"].grid(row = SIZE_X+1, column = 0, columnspan = int(SIZE_Y/2)) # bottom left
+        labels["flags"].grid(row = SIZE_X+1, column = int(SIZE_Y/2)-1, columnspan = int(SIZE_Y/2)) # bottom right
 
-        self.restart() # start game
-        self.updateTimer() # init timer
+        restart() # start game
+        updateTimer() # init timer
 
-    def setup(self):
+def setup():
+        global flagCount
+        global correctFlagCount
+        global clickedCount
+        global startTime
+        global tiles 
+        global mines
+        global images
+        global frame
+
         # create flag and clicked tile variables
-        self.flagCount = 0
-        self.correctFlagCount = 0
-        self.clickedCount = 0
-        self.startTime = None
+        flagCount = 0
+        correctFlagCount = 0
+        clickedCount = 0
+        startTime = None
 
         # create buttons
-        self.tiles = dict({})
-        self.mines = 0
+        tiles = dict({})
+        mines = 0
         for x in range(0, SIZE_X):
             for y in range(0, SIZE_Y):
                 if y == 0:
-                    self.tiles[x] = {}
+                    tiles[x] = {}
 
                 id = str(x) + "_" + str(y)
                 isMine = False
 
                 # tile image changeable for debug reasons:
-                gfx = self.images["plain"]
+                gfx = images["plain"]
 
                 # currently random amount of mines
                 if random.uniform(0.0, 1.0) < 0.1:
                     isMine = True
-                    self.mines += 1
+                    mines += 1
 
                 tile = {
                     "id": id,
@@ -89,60 +102,80 @@ class Minesweeper:
                         "x": x,
                         "y": y
                     },
-                    "button": Button(self.frame, image = gfx),
+                    "button": Button(frame, image = gfx),
                     "mines": 0 # calculated after grid is built
                 }
 
-                tile["button"].bind(BTN_CLICK, self.onClickWrapper(x, y))
-                tile["button"].bind(BTN_FLAG, self.onRightClickWrapper(x, y))
+                tile["button"].bind(BTN_CLICK, onClickWrapper(x, y))
+                tile["button"].bind(BTN_FLAG, onRightClickWrapper(x, y))
                 tile["button"].grid( row = x+1, column = y ) # offset by 1 row for timer
 
-                self.tiles[x][y] = tile
+                tiles[x][y] = tile
 
         # loop again to find nearby mines and display number on tile
         for x in range(0, SIZE_X):
             for y in range(0, SIZE_Y):
                 mc = 0
-                for n in self.getNeighbors(x, y):
+                for n in getNeighbors(x, y):
                     mc += 1 if n["isMine"] else 0
-                self.tiles[x][y]["mines"] = mc
+                tiles[x][y]["mines"] = mc
 
-    def restart(self):
-        self.setup()
-        self.refreshLabels()
+def restart():
+        setup()
+        refreshLabels()
 
-    def refreshLabels(self):
-        self.labels["flags"].config(text = "Flags: "+str(self.flagCount))
-        self.labels["mines"].config(text = "Mines: "+str(self.mines))
+def refreshLabels():
+        global labels
+        global flagCount
+        global mines
 
-    def gameOver(self, won):
+        labels["flags"].config(text = "Flags: "+str(flagCount))
+        labels["mines"].config(text = "Mines: "+str(mines))
+
+def gameOver(won):
+        global SIZE_X
+        global SIZE_Y
+        global tiles 
+        global window
+
         for x in range(0, SIZE_X):
             for y in range(0, SIZE_Y):
-                if self.tiles[x][y]["isMine"] == False and self.tiles[x][y]["state"] == STATE_FLAGGED:
-                    self.tiles[x][y]["button"].config(image = self.images["wrong"])
-                if self.tiles[x][y]["isMine"] == True and self.tiles[x][y]["state"] != STATE_FLAGGED:
-                    self.tiles[x][y]["button"].config(image = self.images["mine"])
+                if tiles[x][y]["isMine"] == False and tiles[x][y]["state"] == STATE_FLAGGED:
+                    tiles[x][y]["button"].config(image = images["wrong"])
+                if tiles[x][y]["isMine"] == True and tiles[x][y]["state"] != STATE_FLAGGED:
+                    tiles[x][y]["button"].config(image = images["mine"])
 
-        self.tk.update()
+        window.update()
 
-        msg = "You Win! Play again?" if won else "You Lose! Play again?"
+        msg = None
+        if won:
+            msg = "You Win! Play again?"
+        else:
+            msg = "You Lose! Play again?"
+
         res = tkMessageBox.askyesno("Game Over", msg)
         if res:
-            self.restart()
+            restart()
         else:
-            self.tk.quit()
+            window.quit()
 
-    def updateTimer(self):
+def updateTimer():
+        global startTime
+        global frame 
+        global labels 
+
         ts = "00:00:00"
-        if self.startTime != None:
-            delta = datetime.now() - self.startTime
+        if startTime != None:
+            delta = datetime.now() - startTime
             ts = str(delta).split('.')[0] # drop ms
             if delta.total_seconds() < 36000:
                 ts = "0" + ts # zero-pad
-        self.labels["time"].config(text = ts)
-        self.frame.after(100, self.updateTimer)
+        labels["time"].config(text = ts)
+        frame.after(100, updateTimer)
 
-    def getNeighbors(self, x, y):
+def getNeighbors(x, y):
+        global tiles
+
         neighbors = []
         coords = [
             {"x": x-1,  "y": y-1},  #top right
@@ -156,65 +189,79 @@ class Minesweeper:
         ]
         for n in coords:
             try:
-                neighbors.append(self.tiles[n["x"]][n["y"]])
+                neighbors.append(tiles[n["x"]][n["y"]])
             except KeyError:
                 pass
         return neighbors
 
-    def onClickWrapper(self, x, y):
-        return lambda Button: self.onClick(self.tiles[x][y])
+def onClickWrapper(x, y):
+        global tiles
 
-    def onRightClickWrapper(self, x, y):
-        return lambda Button: self.onRightClick(self.tiles[x][y])
+        return lambda Button: onClick(tiles[x][y])
 
-    def onClick(self, tile):
-        if self.startTime == None:
-            self.startTime = datetime.now()
+def onRightClickWrapper(x, y):
+        global tiles
+
+        return lambda Button: onRightClick(tiles[x][y])
+
+def onClick(tile):
+        global startTime
+        global images 
+        global mines
+        global clickedCount
+
+        if startTime == None:
+            startTime = datetime.now()
 
         if tile["isMine"] == True:
             # end game
-            self.gameOver(False)
+            gameOver(False)
             return
 
         # change image
         if tile["mines"] == 0:
-            tile["button"].config(image = self.images["clicked"])
-            self.clearSurroundingTiles(tile["id"])
+            tile["button"].config(image = images["clicked"])
+            clearSurroundingTiles(tile["id"])
         else:
-            tile["button"].config(image = self.images["numbers"][tile["mines"]-1])
+            tile["button"].config(image = images["numbers"][tile["mines"]-1])
         # if not already set as clicked, change state and count
         if tile["state"] != STATE_CLICKED:
             tile["state"] = STATE_CLICKED
-            self.clickedCount += 1
-        if self.clickedCount == (SIZE_X * SIZE_Y) - self.mines:
-            self.gameOver(True)
+            clickedCount += 1
+        if clickedCount == (SIZE_X * SIZE_Y) - mines:
+            gameOver(True)
 
-    def onRightClick(self, tile):
-        if self.startTime == None:
-            self.startTime = datetime.now()
+def onRightClick(tile):
+        global startTime
+        global images
+        global flagCount
+        global correctFlagCount
+
+        if startTime == None:
+            startTime = datetime.now()
 
         # if not clicked
         if tile["state"] == STATE_DEFAULT:
-            tile["button"].config(image = self.images["flag"])
+            tile["button"].config(image = images["flag"])
             tile["state"] = STATE_FLAGGED
             tile["button"].unbind(BTN_CLICK)
             # if a mine
             if tile["isMine"] == True:
-                self.correctFlagCount += 1
-            self.flagCount += 1
-            self.refreshLabels()
+                correctFlagCount += 1
+            flagCount += 1
+            refreshLabels()
         # if flagged, unflag
         elif tile["state"] == 2:
-            tile["button"].config(image = self.images["plain"])
+            tile["button"].config(image = images["plain"])
             tile["state"] = 0
-            tile["button"].bind(BTN_CLICK, self.onClickWrapper(tile["coords"]["x"], tile["coords"]["y"]))
+            tile["button"].bind(BTN_CLICK, onClickWrapper(tile["coords"]["x"], tile["coords"]["y"]))
             # if a mine
             if tile["isMine"] == True:
-                self.correctFlagCount -= 1
-            self.flagCount -= 1
-            self.refreshLabels()
+                correctFlagCount -= 1
+            flagCount -= 1
+            refreshLabels()
 
-    def clearSurroundingTiles(self, id):
+def clearSurroundingTiles(id):
         queue = deque([id])
 
         while len(queue) != 0:
@@ -223,31 +270,36 @@ class Minesweeper:
             x = int(parts[0])
             y = int(parts[1])
 
-            for tile in self.getNeighbors(x, y):
-                self.clearTile(tile, queue)
+            for tile in getNeighbors(x, y):
+                clearTile(tile, queue)
 
-    def clearTile(self, tile, queue):
+def clearTile(tile, queue):
+        global clickedCount
+        global images
+
         if tile["state"] != STATE_DEFAULT:
             return
 
         if tile["mines"] == 0:
-            tile["button"].config(image = self.images["clicked"])
+            tile["button"].config(image = images["clicked"])
             queue.append(tile["id"])
         else:
-            tile["button"].config(image = self.images["numbers"][tile["mines"]-1])
+            tile["button"].config(image = images["numbers"][tile["mines"]-1])
 
         tile["state"] = STATE_CLICKED
-        self.clickedCount += 1
+        clickedCount += 1
 
 ### END OF CLASSES ###
 
 def main():
+    global window
+
     # create Tk instance
     window = Tk()
     # set program title
     window.title("Minesweeper")
     # create game instance
-    minesweeper = Minesweeper(window)
+    init()
     # run event loop
     window.mainloop()
 
